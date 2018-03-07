@@ -17,15 +17,6 @@ void systemMessage(char* msg) {
 }
 
 
-int symlink(const char *pathname, const char *slink) {
-    return syscall(57, pathname, slink);
-}
-
-int lstat(const char *pathname, struct stat *buf) {
-    return syscall(190, pathname, buf);
-}
-
-
 int file_compare(char *fname1, char *fname2)
 {
     long size1, size2;
