@@ -172,7 +172,7 @@ void makeini()
     {
     FILE *ini = fopen(ini_file_path,"wb");
     char *buffer;
-    buffer ="To use this list as a list of games you want to move not ignore then uncomment the line below.\r\n//MODE_MOVE\r\n\r\nExample ignore or move usage.\r\n\r\nCUSAXXXX1\r\nCUSAXXXX2\r\nCUSAXXXX3";
+    buffer ="To check the usb root for the pkg file to save time copying from the internal ps4 drive then uncomment the line below.\r\nbut remember this will move the pkg from the root directory to the PS4 folder.\r\n//CHECK_USB\r\n\r\nTo use this list as a list of games you want to move not ignore then uncomment the line below.\r\n//MODE_MOVE\r\n\r\nExample ignore or move usage.\r\n\r\nCUSAXXXX1\r\nCUSAXXXX2\r\nCUSAXXXX3";
     fwrite(buffer, 1, strlen(buffer), ini);
     fclose(ini);
     }
@@ -233,6 +233,34 @@ int ismovemode()
         }
 }
 
+
+
+int isusbcheck()
+{
+        if (file_exists(ini_file_path)) 
+        {
+            FILE *cfile = fopen(ini_file_path, "rb");
+            char *idata = read_string(cfile);
+            fclose(cfile);
+            if (strlen(idata) != 0)
+            {
+                if(strstr(idata, "//CHECK_USB") != NULL) 
+                {
+                   return 0;
+                }
+                else if(strstr(idata, "CHECK_USB") != NULL) 
+                {
+                   return 1;
+                }
+             return 0;
+             }
+        return 0;
+        }
+        else
+        {
+             return 0;
+        }
+}
 
 
 
@@ -309,6 +337,49 @@ void copypkg(char *sourcepath, char* destpath)
 }
 
 
+void checkusbpkg(char *sourcedir, char* destdir) {
+   if (isusbcheck())
+   {
+     if (!symlink_exists(sourcedir))
+     {
+        if (isfpkg(sourcedir) == 0) 
+        {
+            if (!file_exists(destdir)) 
+            {
+            DIR *dir;
+            struct dirent *dp;
+            struct stat info;
+            char upkg_path[1024];
+            dir = opendir(usb_mount_path);
+            if (dir) {
+            while ((dp = readdir(dir)) != NULL)
+            {
+            if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
+            {}
+            else
+            {
+            sprintf(upkg_path, "/%s/%s", usb_mount_path, dp->d_name);
+            if (!stat(upkg_path, &info))
+            {
+		if (file_compare(sourcedir, upkg_path))
+		{
+                if (S_ISREG(info.st_mode))
+                {
+		    rename(upkg_path, destdir);
+		    break;
+	        }
+             }
+          }
+        }
+      }
+      closedir(dir);
+      }
+     }
+   }
+ }
+}
+}
+
 
 
 void copyDir(char *sourcedir, char* destdir)
@@ -329,6 +400,7 @@ void copyDir(char *sourcedir, char* destdir)
         {
             sprintf(src_path, "%s/%s", sourcedir, dp->d_name);
             sprintf(dst_path, "%s/%s", destdir  , dp->d_name);
+
             if (!stat(src_path, &info))
             {
                 if (S_ISDIR(info.st_mode))
@@ -344,13 +416,16 @@ void copyDir(char *sourcedir, char* destdir)
                    {
                    if (isinlist(src_path) )
                    {
+                     checkusbpkg(src_path, dst_path);
                      copypkg(src_path, dst_path);
+
                    }
                  }
                  else
                  {
                    if (!isinlist(src_path) )
                    {
+                     checkusbpkg(src_path, dst_path);
                      copypkg(src_path, dst_path);
                    }
                  }
