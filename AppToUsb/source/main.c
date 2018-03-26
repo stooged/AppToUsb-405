@@ -6,8 +6,8 @@
 
 int nthread_run;
 char notify_buf[1024];
-char usb_mount_path[255];
-char ini_file_path[255];
+char usb_mount_path[256];
+char ini_file_path[256];
 int  xfer_pct;
 long xfer_cnt;
 char *cfile;
@@ -86,21 +86,36 @@ int file_compare(char *fname1, char *fname2)
 
 
 
-char *replace_str(char *str, char *orig, char *rep)
+char *replace_str( char *str,  char *orig,  char *rep)
 {
-  static char buffer[4096];
-  char *p;
-
-  if(!(p = strstr(str, orig))) 
+    char *ret;
+    int i, count = 0;
+    size_t newlen = strlen(rep);
+    size_t oldlen = strlen(orig);
+    for (i = 0; str[i] != '\0'; i++) {
+       if (strstr(&str[i], orig) == &str[i]) {
+          count++;
+          i += oldlen - 1;
+       }
+    }
+    ret = malloc(i + count * (newlen - oldlen));
+    if (ret == NULL)
     return str;
-
-  strncpy(buffer, str, p-str);
-  buffer[p-str] = '\0';
-
-  sprintf(buffer+(p-str), "%s%s", rep, p+strlen(orig));
-
-  return buffer;
+    i = 0;
+    while (*str) 
+	{
+       if (strstr(str, orig) == str) {
+       strcpy(&ret[i], rep);
+       i += newlen;
+       str += oldlen;
+       } 
+	   else
+       ret[i++] = *str++;
+     }
+     ret[i] = '\0';
+     return ret;
 }
+
 
 
 int fgetc(FILE *fp)
@@ -115,7 +130,7 @@ int fgetc(FILE *fp)
 
 char *read_string(FILE* f)
 {
-    char *string = malloc(sizeof(char) * 65535);
+    char *string = malloc(sizeof(char) * 65536);
     int c;
     int length = 0;
     if (!string) return string;
@@ -306,6 +321,36 @@ int isignupdates()
 }
 
 
+void copySmFile(char *sourcefile, char* destfile)
+{
+    if (!file_exists(destfile))
+    {
+        FILE *src = fopen(sourcefile, "rb");
+        if (src)
+        {
+            FILE *out = fopen(destfile,"wb");
+            if (out)
+            {
+                size_t bytes;
+                char *buffer = malloc(65536);
+                if (buffer != NULL)
+                {
+                    while (0 < (bytes = fread(buffer, 1, 65536, src)))
+                        fwrite(buffer, 1, bytes, out);
+                        free(buffer);
+                }
+                fclose(out);
+            }
+            else {
+            }
+            fclose(src);
+        }
+        else {
+        }
+    }
+}
+
+
 void copyFile(char *sourcefile, char* destfile)
 {
     FILE *src = fopen(sourcefile, "rb");
@@ -347,6 +392,53 @@ void copyFile(char *sourcefile, char* destfile)
     }
 }
 
+
+void makePkgInfo(char *pkgFile, char *destpath)
+{
+    if(strstr(pkgFile, "app.pkg") != NULL)
+    {
+        char *titleid;
+        char buffer[37];
+        char srcfile[256];
+        char dstfile[256];
+        destpath = replace_str(destpath, "/app.pkg", "");
+        titleid = replace_str(pkgFile, "/user/app/", "");
+        titleid = replace_str(titleid, "/app.pkg", "");
+
+        FILE *srcid = fopen(pkgFile, "rb");
+        fseek (srcid, 64, SEEK_SET);
+        fread(buffer, 1, sizeof(buffer), srcid);
+        fclose(srcid);
+
+        sprintf(srcfile, "/user/appmeta/%s/pronunciation.xml", titleid);
+        if (file_exists(srcfile))
+        {
+           sprintf(dstfile, "%s/%s.txt", destpath , buffer);
+           copySmFile(srcfile, dstfile);
+        }
+
+        sprintf(srcfile, "/user/appmeta/%s/icon0.png", titleid);
+        if (file_exists(srcfile))
+        {
+           sprintf(dstfile, "%s/icon0.png", destpath);
+           copySmFile(srcfile, dstfile);
+        }
+
+        sprintf(srcfile, "/user/appmeta/%s/pic0.png", titleid);
+        if (file_exists(srcfile))
+        {
+           sprintf(dstfile, "%s/pic0.png", destpath);
+           copySmFile(srcfile, dstfile);
+        }
+
+        sprintf(srcfile, "/user/appmeta/%s/pic1.png", titleid);
+        if (file_exists(srcfile))
+        {
+           sprintf(dstfile, "%s/pic1.png", destpath);
+           copySmFile(srcfile, dstfile);
+        }
+    }
+}
 
 
 void copypkg(char *sourcepath, char* destpath)
@@ -463,6 +555,7 @@ void copyDir(char *sourcedir, char* destdir)
                    {
                    if (isinlist(src_path) )
                    {
+                     makePkgInfo(src_path, dst_path);
                      checkusbpkg(src_path, dst_path);
                      copypkg(src_path, dst_path);
                    }
@@ -471,6 +564,7 @@ void copyDir(char *sourcedir, char* destdir)
                  {
                    if (!isinlist(src_path) )
                    {
+                     makePkgInfo(src_path, dst_path);
                      checkusbpkg(src_path, dst_path);
                      copypkg(src_path, dst_path);
                    }
@@ -482,8 +576,6 @@ void copyDir(char *sourcedir, char* destdir)
     }
     closedir(dir);
 }
-
-
 
 
 
@@ -614,7 +706,7 @@ int _main(struct thread *td) {
     {
             sprintf(usb_mount_path, "%s", usb_mnt_path);
             free(usb_mnt_path);
-            char tmppath[255];
+            char tmppath[256];
             sprintf(tmppath, "%s/PS4", usb_mount_path);
             if (!dir_exists(tmppath)) 
             {
@@ -630,7 +722,7 @@ int _main(struct thread *td) {
             copyDir("/user/app",tmppath);
             if (!isignupdates())
             {
-            char tmppathp[255];
+            char tmppathp[256];
             sprintf(tmppathp, "%s/PS4/updates", usb_mount_path);
             if (!dir_exists(tmppathp)) 
             {
