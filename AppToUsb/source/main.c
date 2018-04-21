@@ -295,6 +295,11 @@ int isinlist(char *sourcefile)
                 tmpstr = replace_str(sourcefile, "/user/patch/", "");
                 tmpstr = replace_str(tmpstr, "/patch.pkg", "");
                 }
+				if (strstr(sourcefile, "/user/addcont/") != NULL)
+                {
+				tmpstr = replace_str(sourcefile, "/user/addcont/", "");
+                tmpstr = replace_str(tmpstr, "/ac.pkg", "");
+                }
                 if(strstr(idata, tmpstr) != NULL) 
                 {
                    return 1;
@@ -396,6 +401,32 @@ int isignupdates()
 }
 
 
+int isigndlc()
+{
+        if (file_exists(ini_file_path)) 
+        {
+            FILE *cfile = fopen(ini_file_path, "rb");
+            char *idata = read_string(cfile);
+            fclose(cfile);
+            if (strlen(idata) != 0)
+            {
+                if(strstr(idata, "//IGNORE_DLC") != NULL) 
+                {
+                   return 0;
+                }
+                else if(strstr(idata, "IGNORE_DLC") != NULL) 
+                {
+                   return 1;
+                }
+             return 0;
+             }
+        return 0;
+        }
+        else
+        {
+             return 0;
+        }
+}
 int isrelink()
 {
         if (file_exists(ini_file_path)) 
@@ -611,6 +642,11 @@ void copypkg(char *sourcepath, char* destpath)
             {
                 ndestpath = replace_str(destpath, "patch.pkg", dstfile);
             }
+            
+			if(strstr(sourcepath, "ac.pkg") != NULL)
+            {                
+				ndestpath = replace_str(destpath, "ac.pkg", dstfile);
+            }
             if (file_exists(destpath)) 
             {
                rename(destpath, ndestpath);
@@ -661,6 +697,10 @@ void checkusbpkg(char *sourcedir, char* destdir) {
             else
             {
                 destdir = replace_str(destdir, "patch.pkg", dstfile);
+            }
+            if(strstr(sourcedir, "ac.pkg") != NULL)
+            {                
+				destdir = replace_str(destdir, "ac.pkg", dstfile);
             }
             if (!file_exists(destdir)) 
             {
@@ -721,6 +761,10 @@ void relink(char *sourcepath, char* destpath)
             {
                 ndestpath = replace_str(destpath, "patch.pkg", dstfile);
             }
+            if(strstr(destpath, "ac.pkg") != NULL)
+            {                
+				ndestpath = replace_str(destpath, "ac.pkg", dstfile);
+            }
             rename(destpath, ndestpath);
             unlink(sourcepath);
             symlink(ndestpath, sourcepath);
@@ -738,6 +782,10 @@ void relink(char *sourcepath, char* destpath)
             else
             {
                 cdestpath = replace_str(destpath, "patch.pkg", cidfile);
+            }
+            if(strstr(sourcepath, "ac.pkg") != NULL)
+            {                
+				cdestpath = replace_str(destpath, "ac.pkg", cidfile);
             }
             if (file_exists(cdestpath)) 
             {
@@ -783,7 +831,7 @@ void copyDir(char *sourcedir, char* destdir)
                 else
                 if (S_ISREG(info.st_mode))
                 {
-                  if(strstr(src_path, "app.pkg") != NULL || strstr(src_path, "patch.pkg") != NULL) 
+                  if(strstr(src_path, "app.pkg") != NULL || strstr(src_path, "patch.pkg") != NULL || strstr(src_path, "ac.pkg") != NULL) 
                   {
                    if (ismovemode() )
                    {
@@ -1008,6 +1056,17 @@ int _main(struct thread *td) {
                systemMessage("Copying updates to USB");
                copyDir("/user/patch",tmppathp);
             }
+            if (!isigndlc())
+            {
+            char tmppathp[256];
+            sprintf(tmppathp, "%s/PS4/addcont", usb_mount_path);
+            if (!dir_exists(tmppathp)) 
+            {
+               mkdir(tmppathp, 0777);
+            }
+               systemMessage("Copie des DLC vers l'USB0");
+               copyDir("/user/addcont",tmppathp);
+            }		
             if (!isnometa())
             {
                systemMessage("Processing appmeta");
